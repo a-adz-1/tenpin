@@ -1,12 +1,12 @@
 use crate::{
-    demos, kit, library, pattern_index, seq::{TRIPLET, TRIPLET8}, Shared, Step, TenpinParams, BANKS,
-    BANK_SIZE, CHANNELS, STEPS,
+    demos, kit, library, pattern_index, seq::{TRIPLET, TRIPLET8}, undo::History, Shared, Step,
+    TenpinParams, BANKS, BANK_SIZE, CHANNELS, STEPS,
 };
 use nih_plug::prelude::*;
 use nih_plug_egui::create_egui_editor;
 use nih_plug_egui::egui::{
-    self, pos2, vec2, Align, Align2, Button, Color32, FontId, Frame, Layout, Margin, Pos2, Rect,
-    Response, RichText, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
+    self, pos2, vec2, Align, Align2, Button, Color32, Event, FontId, Frame, Key, Layout, Margin,
+    Modifiers, Pos2, Rect, Response, RichText, Sense, Shape, Stroke, StrokeKind, Ui, Vec2,
 };
 use std::f32::consts::PI;
 use std::sync::atomic::Ordering;
@@ -51,23 +51,117 @@ struct View {
     dynamic: u8,
     /// Drag distance not yet turned into pitch steps.
     drag: f32,
+    history: History<Snapshot>,
+    /// The params undo covers, in Snapshot::values order.
+    undoable: Vec<ParamPtr>,
+    /// The user clicked, scrolled or typed since the last record.
+    armed: bool,
+    last_input: f64,
+    /// The Undo or Redo button was pressed this frame.
+    undo: bool,
+    redo: bool,
+}
+
+/// Everything undo covers: the patterns, user samples and every knob and button but the
+/// transport and pattern select.
+#[derive(Clone)]
+struct Snapshot {
+    patterns: Vec<Step>,
+    paths: Vec<String>,
+    /// Kept so undo needn't reload WAVs; paths already tell samples apart.
+    user: Vec<Option<Arc<kit::Sample>>>,
+    values: Vec<f32>,
+}
+
+impl PartialEq for Snapshot {
+    fn eq(&self, o: &Self) -> bool {
+        self.patterns == o.patterns && self.paths == o.paths && self.values == o.values
+    }
+}
+
+fn snapshot(params: &TenpinParams, shared: &Shared, undoable: &[ParamPtr]) -> Snapshot {
+    Snapshot {
+        patterns: params.patterns.read().unwrap().clone(),
+        paths: params.paths.read().unwrap().clone(),
+        user: shared.user.read().unwrap().clone(),
+        values: undoable
+            .iter()
+            .map(|p| unsafe { p.unmodulated_normalized_value() })
+            .collect(),
+    }
+}
+
+fn restore(setter: &ParamSetter, params: &TenpinParams, shared: &Shared, undoable: &[ParamPtr], s: &Snapshot) {
+    *params.patterns.write().unwrap() = s.patterns.clone();
+    *params.paths.write().unwrap() = s.paths.clone();
+    *shared.user.write().unwrap() = s.user.clone();
+    let ctx = setter.raw_context;
+    for (&p, &v) in undoable.iter().zip(&s.values) {
+        unsafe {
+            if p.unmodulated_normalized_value() != v {
+                ctx.raw_begin_set_parameter(p);
+                ctx.raw_set_parameter_normalized(p, v);
+                ctx.raw_end_set_parameter(p);
+            }
+        }
+    }
+}
+
+/// Patterns and samples only change by the user's hand; params also move with host automation,
+/// so they only count right after the user did something.
+fn by_user(view: &View, now: &Snapshot) -> bool {
+    let last = view.history.last();
+    view.armed || now.patterns != last.patterns || now.paths != last.paths
 }
 
 pub fn create(params: Arc<TenpinParams>, shared: Arc<Shared>) -> Option<Box<dyn Editor>> {
+    let undoable: Vec<ParamPtr> = params
+        .param_map()
+        .into_iter()
+        .filter(|(id, ..)| !["run", "pattern", "number"].contains(&id.as_str()))
+        .map(|(_, p, _)| p)
+        .collect();
     let view = View {
         selected: 0,
         collapsed: false,
         mode: Mode::Vel,
         dynamic: 3,
         drag: 0.0,
+        history: History::new(snapshot(&params, &shared, &undoable), 100),
+        undoable,
+        armed: false,
+        last_input: 0.0,
+        undo: false,
+        redo: false,
     };
     create_egui_editor(
         params.editor_state.clone(),
         view,
-        |ctx, _| style(ctx),
+        {
+            let (params, shared) = (params.clone(), shared.clone());
+            move |ctx, view: &mut View| {
+                style(ctx);
+                // The host restores its state after the plugin starts; that's no undo step.
+                let now = snapshot(&params, &shared, &view.undoable);
+                view.history.record(now, false);
+            }
+        },
         move |ctx, setter, view| {
             if let Some(state) = shared.pending_state.lock().unwrap().take() {
                 setter.raw_context.set_state(state);
+            }
+            let (time, down, input, undo, redo) = ctx.input_mut(|i| {
+                let redo = i.consume_key(Modifiers::COMMAND | Modifiers::SHIFT, Key::Z)
+                    || i.consume_key(Modifiers::COMMAND, Key::Y);
+                let undo = i.consume_key(Modifiers::COMMAND, Key::Z);
+                let input = i.events.iter().any(|e| {
+                    matches!(e, Event::PointerButton { .. } | Event::MouseWheel { .. } | Event::Key { pressed: true, .. })
+                });
+                (i.time, i.pointer.any_down(), input, undo, redo)
+            });
+            if input {
+                view.armed = true;
+                view.last_input = time;
             }
             egui::CentralPanel::default()
                 .frame(Frame::new().fill(BG).inner_margin(Margin::same(10)))
@@ -82,6 +176,18 @@ pub fn create(params: Arc<TenpinParams>, shared: Arc<Shared>) -> Option<Box<dyn 
                     ui.add_space(8.0);
                     sequencer(ui, setter, &params, &shared, view);
                 });
+            let (undo, redo) = (undo || std::mem::take(&mut view.undo), redo || std::mem::take(&mut view.redo));
+            // Record once the user lets go and param changes have landed, so a drag is one step.
+            if undo || redo || (!down && time - view.last_input > 0.2) {
+                let now = snapshot(&params, &shared, &view.undoable);
+                let user = by_user(view, &now);
+                view.history.record(now, user);
+                view.armed = false;
+            }
+            let target = if undo { view.history.undo() } else if redo { view.history.redo() } else { None };
+            if let Some(s) = target {
+                restore(setter, &params, &shared, &view.undoable, s);
+            }
         },
     )
 }
@@ -123,6 +229,20 @@ fn header(
                 .clicked()
             {
                 view.collapsed = !view.collapsed;
+            }
+            if ui
+                .add_enabled(view.history.can_redo(), Button::new("Redo").min_size(vec2(50.0, 26.0)))
+                .on_hover_text("Ctrl+Shift+Z")
+                .clicked()
+            {
+                view.redo = true;
+            }
+            if ui
+                .add_enabled(view.history.can_undo(), Button::new("Undo").min_size(vec2(50.0, 26.0)))
+                .on_hover_text("Ctrl+Z")
+                .clicked()
+            {
+                view.undo = true;
             }
             if ui
                 .add(Button::new("Save").min_size(vec2(60.0, 26.0)))

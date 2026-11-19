@@ -13,6 +13,8 @@ in any DAW, or on its own as a **standalone app**.
 - Follows the DAW's transport, or press **Run** to play on its own clock
 - Every knob and button is a DAW parameter you can automate, including each channel's sample
   and the current bank and pattern (automate them to arrange a song)
+- Undo and redo (Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y, or the Undo and Redo buttons) for step edits,
+  knobs, samples, demos and loads
 - MIDI notes C1–A1 (36–45) play channels 1–10
 - **Save / Load** `.tenpin` files: jam in the standalone app, then load the same file in your DAW
 - Demo beats: rock, trance, boom bap, two trap roll beats, house, slow deep house, two drum & bass beats (classic and liquid), funk

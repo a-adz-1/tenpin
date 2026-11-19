@@ -10,6 +10,7 @@ pub mod kit;
 pub mod library;
 mod reverb;
 pub mod seq;
+mod undo;
 
 pub const CHANNELS: usize = 10;
 pub const STEPS: usize = 16;
