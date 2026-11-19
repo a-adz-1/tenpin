@@ -1,7 +1,7 @@
 //! Demo beats, written as text so they read like a drum chart.
 //! Velocity lanes: '.' off, '-' soft, 'o' medium, 'x' hard. Roll lanes: '.' or '1'-'4' hits, 't' for 16th triplets,
 //! 'T' for 8th triplets.
-use crate::{pattern_index, Step, CHANNELS, PATTERNS, STEPS};
+use crate::{pattern_index, Step, BANKS, CHANNELS, PATTERNS, STEPS};
 
 #[derive(Clone, Copy)]
 pub struct Kit {
@@ -48,13 +48,15 @@ pub struct Demo {
     pub bpm: f32,
     pub shuffle: f32,
     pub kit: [Kit; CHANNELS],
-    pub patterns: [&'static [Lane]; PATTERNS],
+    /// Patterns A1-D1.
+    pub patterns: [&'static [Lane]; BANKS],
 }
 
 impl Demo {
     pub fn steps(&self) -> Vec<Step> {
         let mut out = vec![Step::default(); PATTERNS * CHANNELS * STEPS];
-        for (p, lanes) in self.patterns.iter().enumerate() {
+        for (b, lanes) in self.patterns.iter().enumerate() {
+            let p = crate::pattern_of(b, 0);
             for l in lanes.iter() {
                 for (s, c) in l.vel.chars().take(STEPS).enumerate() {
                     let step = &mut out[pattern_index(p, l.ch, s)];

@@ -1,6 +1,6 @@
 use crate::{
-    demos, kit, library, pattern_index, seq::{TRIPLET, TRIPLET8}, Shared, Step, TenpinParams, CHANNELS,
-    PATTERNS, STEPS,
+    demos, kit, library, pattern_index, seq::{TRIPLET, TRIPLET8}, Shared, Step, TenpinParams, BANKS,
+    BANK_SIZE, CHANNELS, STEPS,
 };
 use nih_plug::prelude::*;
 use nih_plug_egui::create_egui_editor;
@@ -227,7 +227,7 @@ fn grid(
     shared: &Arc<Shared>,
     view: &mut View,
 ) {
-    let pattern = params.pattern.value() as usize;
+    let pattern = params.current_pattern();
     let steps = params.steps.value() as usize;
     let playing = shared.step.load(Ordering::Relaxed);
     Frame::new()
@@ -283,7 +283,7 @@ fn sequencer(
     view: &mut View,
 ) {
     let c = view.selected;
-    let pattern = params.pattern.value() as usize;
+    let pattern = params.current_pattern();
     let steps = params.steps.value() as usize;
     let playing = shared.step.load(Ordering::Relaxed);
     Frame::new().fill(PANEL).stroke(Stroke::new(1.0_f32, EDGE)).corner_radius(8).inner_margin(Margin::same(10)).show(ui, |ui| {
@@ -299,13 +299,25 @@ fn sequencer(
             knob(ui, setter, &params.shuffle, "Shuffle", false);
             knob(ui, setter, &params.steps, "Steps", false);
             ui.separator();
-            section(ui, "PATTERN", |ui| {
-                for p in 0..PATTERNS {
-                    let name = ((b'A' + p as u8) as char).to_string();
-                    if pill(ui, pattern == p, &name, AMBER, vec2(30.0, 26.0)).clicked() {
-                        set(setter, &params.pattern, p as i32);
+            ui.vertical(|ui| {
+                ui.spacing_mut().item_spacing = vec2(2.0, 2.0);
+                ui.label(RichText::new("PATTERN").size(10.0).color(DIM));
+                let (bank, number) = (params.pattern.value() as usize, params.number.value() as usize);
+                ui.horizontal(|ui| {
+                    for b in 0..BANKS {
+                        let name = ((b'A' + b as u8) as char).to_string();
+                        if pill(ui, bank == b, &name, AMBER, vec2(34.0, 20.0)).on_hover_text("Bank").clicked() {
+                            set(setter, &params.pattern, b as i32);
+                        }
                     }
-                }
+                });
+                ui.horizontal(|ui| {
+                    for n in 0..BANK_SIZE {
+                        if pill(ui, number == n, &(n + 1).to_string(), AMBER, vec2(16.0, 20.0)).clicked() {
+                            set(setter, &params.number, n as i32);
+                        }
+                    }
+                });
             });
             ui.separator();
             section(ui, "EDIT", |ui| {
@@ -641,6 +653,7 @@ fn apply_demo(setter: &ParamSetter, params: &TenpinParams, shared: &Shared, d: &
     set(setter, &params.shuffle, d.shuffle);
     set(setter, &params.steps, STEPS as i32);
     set(setter, &params.pattern, 0);
+    set(setter, &params.number, 0);
     for (c, k) in d.kit.iter().enumerate() {
         let p = &params.ch[c];
         set(

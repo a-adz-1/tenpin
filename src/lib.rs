@@ -13,7 +13,10 @@ pub mod seq;
 
 pub const CHANNELS: usize = 10;
 pub const STEPS: usize = 16;
-pub const PATTERNS: usize = 4;
+/// Pattern banks A-D, each holding patterns 1-8.
+pub const BANKS: usize = 4;
+pub const BANK_SIZE: usize = 8;
+pub const PATTERNS: usize = BANKS * BANK_SIZE;
 /// Gain for the step velocities off, soft, medium, hard.
 const VELOCITY: [f32; 4] = [0.0, 0.45, 0.7, 1.0];
 
@@ -31,6 +34,11 @@ impl Step {
     pub fn hits(&self) -> i64 {
         self.roll.clamp(1, 4) as i64
     }
+}
+
+/// Bank-minor so A1-D1 sit where the four patterns A-D were before banks, and old saves load as is.
+pub fn pattern_of(bank: usize, number: usize) -> usize {
+    number * BANKS + bank
 }
 
 pub fn pattern_index(pattern: usize, ch: usize, step: usize) -> usize {
@@ -74,8 +82,12 @@ pub struct TenpinParams {
     pub shuffle: FloatParam,
     #[id = "steps"]
     pub steps: IntParam,
+    /// The bank, A-D. Its id is from when there were only four patterns, so it stays.
     #[id = "pattern"]
     pub pattern: IntParam,
+    /// The pattern within the bank, 1-8.
+    #[id = "number"]
+    pub number: IntParam,
     #[nested(array, group = "Channel")]
     pub ch: [ChannelParams; CHANNELS],
 }
@@ -213,11 +225,11 @@ impl Default for TenpinParams {
                 },
             ),
             pattern: IntParam::new(
-                "Pattern",
+                "Bank",
                 0,
                 IntRange::Linear {
                     min: 0,
-                    max: PATTERNS as i32 - 1,
+                    max: BANKS as i32 - 1,
                 },
             )
             .with_value_to_string(Arc::new(|v| ((b'A' + v as u8) as char).to_string()))
@@ -227,8 +239,25 @@ impl Default for TenpinParams {
                     .next()
                     .map(|c| c.to_ascii_uppercase() as i32 - b'A' as i32)
             })),
+            number: IntParam::new(
+                "Pattern",
+                0,
+                IntRange::Linear {
+                    min: 0,
+                    max: BANK_SIZE as i32 - 1,
+                },
+            )
+            .with_value_to_string(Arc::new(|v| (v + 1).to_string()))
+            .with_string_to_value(Arc::new(|s| s.trim().parse::<i32>().ok().map(|n| n - 1))),
             ch: std::array::from_fn(|c| ChannelParams::new(c, &demo.kit[c])),
         }
+    }
+}
+
+impl TenpinParams {
+    /// The pattern the bank and number buttons pick.
+    pub fn current_pattern(&self) -> usize {
+        pattern_of(self.pattern.value() as usize, self.number.value() as usize)
     }
 }
 
@@ -337,6 +366,10 @@ impl Plugin for Tenpin {
     type SysExMessage = ();
     type BackgroundTask = ();
 
+    fn filter_state(state: &mut PluginState) {
+        resize_patterns(state);
+    }
+
     fn params(&self) -> Arc<dyn Params> {
         self.params.clone()
     }
@@ -413,7 +446,7 @@ impl Plugin for Tenpin {
 
         let shuffle = params.shuffle.value() as f64;
         let steps = params.steps.value() as i64;
-        let pattern = params.pattern.value() as usize;
+        let pattern = params.current_pattern();
         let master = params.master.value();
         let room = params.room.value();
         let any_solo = params.ch.iter().any(|p| p.solo.value());
@@ -523,6 +556,19 @@ impl Plugin for Tenpin {
     }
 }
 
+/// Saves from before banks hold four patterns; pad them to the full set, the new ones empty.
+fn resize_patterns(state: &mut PluginState) {
+    let Some(json) = state.fields.get_mut("patterns") else {
+        return;
+    };
+    if let Ok(mut steps) = serde_json::from_str::<Vec<Step>>(json) {
+        steps.resize(PATTERNS * CHANNELS * STEPS, Step::default());
+        if let Ok(new) = serde_json::to_string(&steps) {
+            *json = new;
+        }
+    }
+}
+
 /// The sample a channel plays: its user WAV if it has one, else its library pick.
 fn lib_or_user<'a>(
     user: &'a [Option<Arc<kit::Sample>>],
@@ -560,3 +606,43 @@ impl Vst3Plugin for Tenpin {
 
 nih_export_clap!(Tenpin);
 nih_export_vst3!(Tenpin);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_bank_and_number_is_its_own_pattern() {
+        let mut seen: Vec<_> = (0..BANKS)
+            .flat_map(|b| (0..BANK_SIZE).map(move |n| pattern_of(b, n)))
+            .collect();
+        seen.sort();
+        assert_eq!(seen, (0..PATTERNS).collect::<Vec<_>>());
+        // The old patterns A-D are A1-D1.
+        assert_eq!((0..BANKS).map(|b| pattern_of(b, 0)).collect::<Vec<_>>(), [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn old_four_pattern_saves_load_into_a1_to_d1() {
+        let mut old = vec![Step::default(); 4 * CHANNELS * STEPS];
+        for p in 0..4 {
+            old[pattern_index(p, 2, 5)] = Step { vel: 3, roll: 1, pitch: p as i8 };
+        }
+        let mut state = PluginState {
+            version: String::new(),
+            params: Default::default(),
+            fields: [("patterns".into(), serde_json::to_string(&old).unwrap())].into(),
+        };
+        resize_patterns(&mut state);
+        let steps: Vec<Step> = serde_json::from_str(&state.fields["patterns"]).unwrap();
+        assert_eq!(steps.len(), PATTERNS * CHANNELS * STEPS);
+        for b in 0..BANKS {
+            assert_eq!(steps[pattern_index(pattern_of(b, 0), 2, 5)].pitch, b as i8);
+            for n in 1..BANK_SIZE {
+                assert!(steps[pattern_index(pattern_of(b, n), 0, 0)..][..CHANNELS * STEPS]
+                    .iter()
+                    .all(|s| *s == Step::default()));
+            }
+        }
+    }
+}

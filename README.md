@@ -7,12 +7,12 @@ in any DAW, or on its own as a **standalone app**.
 
 - Ten channels, each with its own sample, level, pan, pitch, decay, tone and start point, plus
   mute, solo and choke (choke channels cut each other off, like a closed hat stopping an open one)
-- A 16-step sequencer with four patterns (A–D), three velocities per step, shuffle and 1–16 steps
+- A 16-step sequencer with 32 patterns (banks A–D × 1–8), three velocities per step, shuffle and 1–16 steps
 - Per-step **rolls** (1–4 hits inside a step, for hi-hat rolls) and per-step **pitch**
 - A built-in sample library and synthesized kit, or load your own WAVs
 - Follows the DAW's transport, or press **Run** to play on its own clock
 - Every knob and button is a DAW parameter you can automate, including each channel's sample
-  and the current pattern (automate the pattern to arrange a song)
+  and the current bank and pattern (automate them to arrange a song)
 - MIDI notes C1–A1 (36–45) play channels 1–10
 - **Save / Load** `.tenpin` files: jam in the standalone app, then load the same file in your DAW
 - Demo beats: rock, trance, boom bap, two trap roll beats, house, slow deep house, two drum & bass beats (classic and liquid), funk
