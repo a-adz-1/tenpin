@@ -364,7 +364,7 @@ pub const ALL: &[Demo] = &[
     },
     Demo {
         name: "Hip hop: trap rolls 2",
-        bpm: 145.0,
+        bpm: 140.0,
         shuffle: 0.0,
         kit: [
             s("kick_house"),
@@ -378,48 +378,48 @@ pub const ALL: &[Demo] = &[
             Kit { decay: 2.5, ..s("sub_808_f") },
             s("perc_cowbell_808"),
         ],
-        // Snare rolls in 8th-note triplets: a group of three, then three more a fourth lower,
-        // with one hit chopped into a fast stutter.
+        // Trap rolls 1's groove with snare rolls in 8th-note triplets: a group of three,
+        // then three more a fourth lower, with a stutter driving into the last hit.
         patterns: [
             &[
-                lane(KICK, "x......x..x....."),
-                lane(SNARE, "........x......."),
+                lane(KICK, "x.........x....."),
+                Lane { roll: "............TTT.", ..lane(SNARE, "........x...-ox.") },
                 lane(CLAP, "........x......."),
-                Lane { roll: "..........tt....", ..lane(HAT, "o.o.o.o.o.oo-.o.") },
-                Lane { pitch: &[(7, 3), (10, 0)], ..lane(LOW, "x......x..x.....") },
+                Lane { roll: "......tt........", ..lane(HAT, "o.o.o.oox.o.o.o.") },
+                Lane { pitch: &[(6, 0), (10, 3), (14, -2)], ..lane(LOW, "x.....x...x...x.") },
             ],
             &[
-                lane(KICK, "x......x........"),
+                lane(KICK, "x.........x....."),
                 Lane {
-                    roll: "........T33.TTT.",
+                    roll: "........TT3.TTT.",
                     pitch: &[(12, -5), (13, -5), (14, -5)],
-                    ..lane(SNARE, "........x-o.xox.")
+                    ..lane(SNARE, "........xo-.xox.")
                 },
                 lane(CLAP, "........x......."),
-                lane(HAT, "o.o.o.o.o...o..."),
-                Lane { pitch: &[(7, 3)], ..lane(LOW, "x......x........") },
+                Lane { roll: "......tt........", ..lane(HAT, "o.o.o.oox.o.o.o.") },
+                Lane { pitch: &[(6, 0), (10, 3), (14, -2)], ..lane(LOW, "x.....x...x...x.") },
             ],
-            // Flipped: low group first, then the high group stutters up into the next bar.
+            // Flipped: the low group first, then the high group stutters into the next bar.
             &[
                 lane(KICK, "x.....x...x....."),
                 Lane {
-                    roll: "........TTT.T33.",
-                    pitch: &[(8, -5), (9, -5), (10, -5), (14, 2)],
-                    ..lane(SNARE, "........-o-.x-ox")
+                    roll: "........TTT.TT3.",
+                    pitch: &[(8, -5), (9, -5), (10, -5)],
+                    ..lane(SNARE, "........oo-.xo-.")
                 },
                 lane(CLAP, "........x......."),
-                Lane { roll: "....tt..........", ..lane(HAT, "o.o.oo..o.o.o.o.") },
-                Lane { pitch: &[(6, 5), (10, 3)], ..lane(LOW, "x.....x...x.....") },
+                Lane { roll: "....tttt........", ..lane(HAT, "o.o.--oox.o.o.o.") },
+                Lane { pitch: &[(0, 0), (6, 5), (10, 3), (12, 0)], ..lane(LOW, "x.....x...x.x...") },
             ],
-            // Fill: a whole bar of triplet groups, getting louder.
+            // Fill: a bar of triplet groups stepping down and back, getting louder.
             &[
                 lane(KICK, "x..............."),
                 Lane {
-                    roll: "TTT.TTT.T33.TTT.",
-                    pitch: &[(4, -5), (5, -5), (6, -5), (8, 2), (9, 2), (10, 2), (12, -3), (13, -3), (14, -3)],
-                    ..lane(SNARE, "---.ooo.o-o.xxx.")
+                    roll: "TTT.TTT.TT3.TTT.",
+                    pitch: &[(4, -5), (5, -5), (6, -5), (12, -5), (13, -5), (14, -5)],
+                    ..lane(SNARE, "---.ooo.oo-.xxx.")
                 },
-                lane(HAT, "o.o.o.o........."),
+                lane(HAT, "o.o.o.o.o.o.o.o."),
                 Lane { pitch: &[(0, 0)], ..lane(LOW, "x...............") },
             ],
         ],
@@ -612,6 +612,58 @@ pub const ALL: &[Demo] = &[
         ],
     },
     Demo {
+        // Slow and deep: a long subby kick on every beat, claps on 2 and 4, offbeat hats
+        // and low congas answering the kick.
+        name: "Deep house: slow",
+        bpm: 108.0,
+        shuffle: 0.1,
+        kit: [
+            Kit { decay: 1.2, ..s("kick_909_long") },
+            Kit { level: -4.0, ..s("snare_909") },
+            Kit { level: -2.0, ..s("clap_909") },
+            Kit { decay: 0.1, pan: 0.2, ..hat("hat_closed_909") },
+            Kit { decay: 0.25, pan: 0.2, ..hat("hat_open_909") },
+            Kit { level: -8.0, pan: -0.3, ..s("ride_bell") },
+            Kit { level: -4.0, decay: 4.0, ..s("crash_bright") },
+            Kit { level: -6.0, pan: -0.3, ..s("rim_808") },
+            Kit { level: -3.0, pan: 0.25, ..s("perc_conga_low") },
+            Kit { level: -8.0, pan: -0.2, ..s("perc_shaker") },
+        ],
+        patterns: [
+            &[
+                lane(KICK, "x...x...x...x..."),
+                lane(CLAP, "....x.......x..."),
+                lane(OPEN, "..o...o...o...o."),
+                lane(LOW, ".........-...-.."),
+            ],
+            &[
+                lane(KICK, "x...x...x...x..."),
+                lane(CLAP, "....x.......x..."),
+                lane(OPEN, "..o...o...o...o."),
+                lane(HAT, "-.......-......."),
+                lane(LOW, ".......-.o...-.."),
+                lane(TOM_HI, "...-.......-...."),
+            ],
+            &[
+                lane(KICK, "x...x...x...x..."),
+                lane(CLAP, "....x.......x..."),
+                lane(SNARE, "..............-."),
+                lane(OPEN, "..o...o...o...o."),
+                lane(PERC, "-.-.-.-.-.-.-.-."),
+                lane(LOW, ".........-...-.."),
+                lane(CRASH, "x..............."),
+            ],
+            // Breakdown: the kick drops out after the one.
+            &[
+                lane(KICK, "x..............."),
+                lane(CLAP, "....x.......x..."),
+                lane(OPEN, "..o...o...o...o."),
+                lane(RIDE, "o...o...o...o..."),
+                lane(LOW, ".........-.o.-.."),
+            ],
+        ],
+    },
+    Demo {
         name: "Tenpin synth kit",
         bpm: 120.0,
         shuffle: 0.0,
@@ -689,7 +741,7 @@ mod tests {
             })
             .map(|(k, t)| k * TICKS + t)
             .collect();
-        // Triplets every 16 ticks from beat 3, with the second one chopped into 4-tick hits.
-        assert_eq!(hits, vec![96, 108, 112, 116, 120, 124, 128, 144, 160, 176]);
+        // Triplets every 16 ticks from beat 3, with 4-tick hits driving into the third.
+        assert_eq!(hits, vec![96, 112, 120, 124, 128, 144, 160, 176]);
     }
 }

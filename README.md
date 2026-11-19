@@ -15,7 +15,7 @@ in any DAW, or on its own as a **standalone app**.
   and the current pattern (automate the pattern to arrange a song)
 - MIDI notes C1–A1 (36–45) play channels 1–10
 - **Save / Load** `.tenpin` files: jam in the standalone app, then load the same file in your DAW
-- Demo beats: rock, trance, boom bap, two trap roll beats, house, two drum & bass beats (classic and liquid), funk
+- Demo beats: rock, trance, boom bap, two trap roll beats, house, slow deep house, two drum & bass beats (classic and liquid), funk
 
 ## Download
 
