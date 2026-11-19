@@ -22,13 +22,15 @@ fn ticks(x: f64, shuffle: f64) -> f64 {
 /// Roll value for 16th-note triplets: a hit every 2/3 of a step on a grid that runs across steps,
 /// so two triplet steps in a row give three even hits.
 pub const TRIPLET: u8 = 5;
+/// Roll value for 8th-note triplets (three hits per beat), on the same running grid.
+pub const TRIPLET8: u8 = 6;
 
 /// Whether a step with this roll value plays at tick `tick` of absolute step `k`.
 pub fn plays(roll: u8, k: i64, tick: i64) -> bool {
-    if roll == TRIPLET {
-        (k * TICKS + tick).rem_euclid(TICKS * 2 / 3) == 0
-    } else {
-        tick % (TICKS / roll.clamp(1, 4) as i64) == 0
+    match roll {
+        TRIPLET => (k * TICKS + tick).rem_euclid(TICKS * 2 / 3) == 0,
+        TRIPLET8 => (k * TICKS + tick).rem_euclid(TICKS * 4 / 3) == 0,
+        _ => tick % (TICKS / roll.clamp(1, 4) as i64) == 0,
     }
 }
 
@@ -87,5 +89,13 @@ mod tests {
             .collect();
         assert_eq!(hits, vec![24, 32, 40]);
         assert_eq!((0..TICKS).filter(|&t| plays(3, 0, t)).count(), 3);
+    }
+
+    #[test]
+    fn a_beat_of_8th_triplet_steps_plays_three_even_hits() {
+        let hits: Vec<i64> = (4..8)
+            .flat_map(|k| (0..TICKS).filter(move |&t| plays(TRIPLET8, k, t)).map(move |t| k * TICKS + t))
+            .collect();
+        assert_eq!(hits, vec![48, 64, 80]);
     }
 }

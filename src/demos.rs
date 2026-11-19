@@ -1,5 +1,6 @@
 //! Demo beats, written as text so they read like a drum chart.
-//! Velocity lanes: '.' off, '-' soft, 'o' medium, 'x' hard. Roll lanes: '.' or '1'-'4' hits, 't' for 16th triplets.
+//! Velocity lanes: '.' off, '-' soft, 'o' medium, 'x' hard. Roll lanes: '.' or '1'-'4' hits, 't' for 16th triplets,
+//! 'T' for 8th triplets.
 use crate::{pattern_index, Step, CHANNELS, PATTERNS, STEPS};
 
 #[derive(Clone, Copy)]
@@ -64,7 +65,11 @@ impl Demo {
                         .roll
                         .chars()
                         .nth(s)
-                        .and_then(|r| if r == 't' { Some(crate::seq::TRIPLET as u32) } else { r.to_digit(10) })
+                        .and_then(|r| match r {
+                            't' => Some(crate::seq::TRIPLET as u32),
+                            'T' => Some(crate::seq::TRIPLET8 as u32),
+                            _ => r.to_digit(10),
+                        })
                         .unwrap_or(1) as u8;
                 }
                 for &(s, semis) in l.pitch {
@@ -291,7 +296,7 @@ pub const ALL: &[Demo] = &[
     Demo {
         // Trap hats: 8ths broken up by 16th-triplet runs ('t'), 32nd and 32nd-triplet rolls and the
         // odd 64th buzz, with velocity swells and pitch climbs; the 808 plays a tune.
-        name: "Hip hop: trap rolls",
+        name: "Hip hop: trap rolls 1",
         bpm: 140.0,
         shuffle: 0.0,
         kit: [
@@ -353,6 +358,68 @@ pub const ALL: &[Demo] = &[
                     ..lane(SNARE, "....x...oooooxxx")
                 },
                 Lane { roll: "........tttt3344", ..lane(HAT, "-.-.-.-.--------") },
+                Lane { pitch: &[(0, 0)], ..lane(LOW, "x...............") },
+            ],
+        ],
+    },
+    Demo {
+        name: "Hip hop: trap rolls 2",
+        bpm: 145.0,
+        shuffle: 0.0,
+        kit: [
+            s("kick_house"),
+            s("snare_trap"),
+            s("clap_808"),
+            Kit { decay: 0.07, pan: 0.1, ..hat("hat_closed_808") },
+            Kit { decay: 0.3, pan: 0.1, ..hat("hat_open_808") },
+            s("ride_bell"),
+            Kit { decay: 3.0, ..s("crash_bright") },
+            s("snap_1"),
+            Kit { decay: 2.5, ..s("sub_808_f") },
+            s("perc_cowbell_808"),
+        ],
+        // Snare rolls in 8th-note triplets: a group of three, then three more a fourth lower,
+        // with one hit chopped into a fast stutter.
+        patterns: [
+            &[
+                lane(KICK, "x......x..x....."),
+                lane(SNARE, "........x......."),
+                lane(CLAP, "........x......."),
+                Lane { roll: "..........tt....", ..lane(HAT, "o.o.o.o.o.oo-.o.") },
+                Lane { pitch: &[(7, 3), (10, 0)], ..lane(LOW, "x......x..x.....") },
+            ],
+            &[
+                lane(KICK, "x......x........"),
+                Lane {
+                    roll: "........T33.TTT.",
+                    pitch: &[(12, -5), (13, -5), (14, -5)],
+                    ..lane(SNARE, "........x-o.xox.")
+                },
+                lane(CLAP, "........x......."),
+                lane(HAT, "o.o.o.o.o...o..."),
+                Lane { pitch: &[(7, 3)], ..lane(LOW, "x......x........") },
+            ],
+            // Flipped: low group first, then the high group stutters up into the next bar.
+            &[
+                lane(KICK, "x.....x...x....."),
+                Lane {
+                    roll: "........TTT.T33.",
+                    pitch: &[(8, -5), (9, -5), (10, -5), (14, 2)],
+                    ..lane(SNARE, "........-o-.x-ox")
+                },
+                lane(CLAP, "........x......."),
+                Lane { roll: "....tt..........", ..lane(HAT, "o.o.oo..o.o.o.o.") },
+                Lane { pitch: &[(6, 5), (10, 3)], ..lane(LOW, "x.....x...x.....") },
+            ],
+            // Fill: a whole bar of triplet groups, getting louder.
+            &[
+                lane(KICK, "x..............."),
+                Lane {
+                    roll: "TTT.TTT.T33.TTT.",
+                    pitch: &[(4, -5), (5, -5), (6, -5), (8, 2), (9, 2), (10, 2), (12, -3), (13, -3), (14, -3)],
+                    ..lane(SNARE, "---.ooo.o-o.xxx.")
+                },
+                lane(HAT, "o.o.o.o........."),
                 Lane { pitch: &[(0, 0)], ..lane(LOW, "x...............") },
             ],
         ],
@@ -569,5 +636,22 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn trap_2_snare_roll_lands_on_triplets_with_a_stutter() {
+        use crate::seq::{plays, TICKS};
+        let d = ALL.iter().find(|d| d.name == "Hip hop: trap rolls 2").unwrap();
+        let steps = d.steps();
+        let hits: Vec<i64> = (0..STEPS as i64)
+            .flat_map(|k| (0..TICKS).map(move |t| (k, t)))
+            .filter(|&(k, t)| {
+                let s = steps[pattern_index(1, SNARE, k as usize)];
+                s.vel > 0 && plays(s.roll, k, t)
+            })
+            .map(|(k, t)| k * TICKS + t)
+            .collect();
+        // Triplets every 16 ticks from beat 3, with the second one chopped into 4-tick hits.
+        assert_eq!(hits, vec![96, 108, 112, 116, 120, 124, 128, 144, 160, 176]);
     }
 }
