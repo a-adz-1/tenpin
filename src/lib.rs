@@ -8,6 +8,7 @@ pub mod demos;
 mod editor;
 pub mod kit;
 pub mod library;
+mod reverb;
 pub mod seq;
 
 pub const CHANNELS: usize = 10;
@@ -62,6 +63,9 @@ pub struct TenpinParams {
 
     #[id = "master"]
     pub master: FloatParam,
+    /// How long the shared reverb rings.
+    #[id = "room"]
+    pub room: FloatParam,
     #[id = "run"]
     pub run: BoolParam,
     #[id = "bpm"]
@@ -98,6 +102,9 @@ pub struct ChannelParams {
     pub solo: BoolParam,
     #[id = "choke"]
     pub choke: BoolParam,
+    /// Send into the shared reverb.
+    #[id = "verb"]
+    pub verb: FloatParam,
 }
 
 fn gain_param(name: String, default_db: f32) -> FloatParam {
@@ -171,6 +178,7 @@ impl ChannelParams {
             mute: BoolParam::new(format!("{n} Mute"), false),
             solo: BoolParam::new(format!("{n} Solo"), false),
             choke: BoolParam::new(format!("{n} Choke"), kit.choke),
+            verb: pct_param(format!("{n} Reverb"), kit.verb),
         }
     }
 }
@@ -183,6 +191,7 @@ impl Default for TenpinParams {
             patterns: RwLock::new(demo.steps()),
             paths: RwLock::new(vec![String::new(); CHANNELS]),
             master: gain_param("Master".into(), -6.0),
+            room: pct_param("Room".into(), 0.35),
             run: BoolParam::new("Run", false),
             bpm: FloatParam::new(
                 "BPM",
@@ -239,6 +248,7 @@ pub struct Tenpin {
     params: Arc<TenpinParams>,
     shared: Arc<Shared>,
     voices: [Voice; CHANNELS],
+    reverb: reverb::Reverb,
     sample_rate: f32,
     /// Last sequencer position in sixteenths, None while stopped.
     prev: Option<f64>,
@@ -258,6 +268,7 @@ impl Default for Tenpin {
                 pending_state: Mutex::new(None),
             }),
             voices: [Voice::default(); CHANNELS],
+            reverb: reverb::Reverb::new(48000.0),
             sample_rate: 48000.0,
             prev: None,
             run_pos: None,
@@ -341,6 +352,7 @@ impl Plugin for Tenpin {
         _context: &mut impl InitContext<Self>,
     ) -> bool {
         self.sample_rate = buffer_config.sample_rate;
+        self.reverb = reverb::Reverb::new(self.sample_rate);
         library::all();
         // Runs again after the host restores state, so saved WAV paths get loaded here.
         load_samples(&self.params, &self.shared);
@@ -349,6 +361,7 @@ impl Plugin for Tenpin {
 
     fn reset(&mut self) {
         self.voices = [Voice::default(); CHANNELS];
+        self.reverb.reset();
         self.prev = None;
         self.run_pos = None;
     }
@@ -402,9 +415,11 @@ impl Plugin for Tenpin {
         let steps = params.steps.value() as i64;
         let pattern = params.pattern.value() as usize;
         let master = params.master.value();
+        let room = params.room.value();
         let any_solo = params.ch.iter().any(|p| p.solo.value());
         let mut gain_l = [0.0f32; CHANNELS];
         let mut gain_r = [0.0f32; CHANNELS];
+        let mut send = [0.0f32; CHANNELS];
         let mut tone = [0.0f32; CHANNELS];
         for (c, p) in params.ch.iter().enumerate() {
             let silent = p.mute.value() || (any_solo && !p.solo.value());
@@ -416,6 +431,7 @@ impl Plugin for Tenpin {
             let angle = (p.pan.value() + 1.0) * std::f32::consts::FRAC_PI_4;
             gain_l[c] = level * angle.cos();
             gain_r[c] = level * angle.sin();
+            send[c] = level * p.verb.value();
             let cutoff = 200.0 * 100f32.powf(p.tone.value());
             tone[c] = 1.0 - (-std::f32::consts::TAU * cutoff / self.sample_rate).exp();
         }
@@ -468,7 +484,7 @@ impl Plugin for Tenpin {
                 self.prev = Some(now);
             }
 
-            let (mut l, mut r) = (0.0, 0.0);
+            let (mut l, mut r, mut wet) = (0.0, 0.0, 0.0);
             for (c, v) in self.voices.iter_mut().enumerate() {
                 if !v.active {
                     continue;
@@ -484,12 +500,14 @@ impl Plugin for Tenpin {
                 let y = v.lp * v.amp;
                 l += y * gain_l[c];
                 r += y * gain_r[c];
+                wet += y * send[c];
                 v.pos += v.rate;
                 v.amp *= v.fall;
             }
+            let (wl, wr) = self.reverb.process(wet, room);
             let mut out = frame.iter_mut();
-            *out.next().unwrap() = l;
-            *out.next().unwrap() = r;
+            *out.next().unwrap() = l + wl;
+            *out.next().unwrap() = r + wr;
         }
         for (c, v) in self.voices.iter().enumerate() {
             shared.levels[c].store(

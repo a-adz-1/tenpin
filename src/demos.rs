@@ -12,6 +12,8 @@ pub struct Kit {
     pub tone: f32,
     pub pan: f32,
     pub choke: bool,
+    /// Reverb send, 0 to 1.
+    pub verb: f32,
 }
 
 pub const K: Kit = Kit {
@@ -22,6 +24,7 @@ pub const K: Kit = Kit {
     tone: 1.0,
     pan: 0.0,
     choke: false,
+    verb: 0.0,
 };
 
 pub struct Lane {
@@ -302,10 +305,10 @@ pub const ALL: &[Demo] = &[
         shuffle: 0.0,
         kit: [
             s("kick_house"),
-            s("snare_trap"),
-            Kit { level: -3.0, ..s("clap_808") },
+            Kit { verb: 0.25, ..s("snare_trap") },
+            Kit { level: -3.0, verb: 0.3, ..s("clap_808") },
             Kit { decay: 0.3, pan: 0.1, ..hat("hat_closed_808") },
-            Kit { level: -4.0, decay: 0.4, pan: 0.1, ..hat("hat_open_808") },
+            Kit { level: -4.0, decay: 0.4, pan: 0.1, verb: 0.15, ..hat("hat_open_808") },
             s("ride_bell"),
             Kit { decay: 3.0, ..s("crash_bright") },
             s("snap_1"),
@@ -366,10 +369,10 @@ pub const ALL: &[Demo] = &[
         shuffle: 0.0,
         kit: [
             s("kick_house"),
-            s("snare_trap"),
-            s("clap_808"),
+            Kit { verb: 0.25, ..s("snare_trap") },
+            Kit { verb: 0.3, ..s("clap_808") },
             Kit { decay: 0.3, pan: 0.1, ..hat("hat_closed_808") },
-            Kit { decay: 0.3, pan: 0.1, ..hat("hat_open_808") },
+            Kit { decay: 0.3, pan: 0.1, verb: 0.15, ..hat("hat_open_808") },
             s("ride_bell"),
             Kit { decay: 3.0, ..s("crash_bright") },
             s("snap_1"),
@@ -475,7 +478,7 @@ pub const ALL: &[Demo] = &[
         shuffle: 0.0,
         kit: [
             s("kick_heavy"),
-            s("snare_dnb"),
+            Kit { verb: 0.2, ..s("snare_dnb") },
             s("clap_909"),
             hat("hat_closed_rock"),
             hat("hat_open_rock"),
@@ -521,14 +524,14 @@ pub const ALL: &[Demo] = &[
         shuffle: 0.0,
         kit: [
             Kit { level: 3.0, decay: 0.3, ..s("kick_tech") },
-            Kit { level: 3.0, pitch: 2.0, ..s("snare_dnb") },
+            Kit { level: 3.0, pitch: 2.0, verb: 0.3, ..s("snare_dnb") },
             // Ghost snares, a little softer and off to one side.
-            Kit { pitch: 2.0, level: -5.0, pan: -0.15, ..s("snare_dnb_2") },
+            Kit { pitch: 2.0, level: -5.0, pan: -0.15, verb: 0.15, ..s("snare_dnb_2") },
             Kit { decay: 0.08, pan: 0.25, ..hat("hat_closed_crisp") },
             Kit { decay: 0.35, pan: 0.25, ..hat("hat_open_acoustic") },
-            Kit { level: -6.0, pan: -0.3, ..s("ride_rock") },
+            Kit { level: -6.0, pan: -0.3, verb: 0.15, ..s("ride_rock") },
             Kit { level: -3.0, decay: 4.0, ..s("crash_bright") },
-            Kit { level: -4.0, pan: 0.35, ..s("perc_tambourine") },
+            Kit { level: -4.0, pan: 0.35, verb: 0.1, ..s("perc_tambourine") },
             s("tom_rock_floor"),
             Kit { level: -5.0, decay: 0.15, pan: -0.3, ..s("perc_shaker") },
         ],

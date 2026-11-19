@@ -111,6 +111,7 @@ fn header(
         ui.label(RichText::new("ten channel drum machine").color(DIM));
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             knob(ui, setter, &params.master, "Master", false);
+            knob(ui, setter, &params.room, "Room", false);
             ui.add_space(8.0);
             let label = if view.collapsed {
                 "Show knobs"
@@ -202,15 +203,18 @@ fn strip(
                     knob(ui, setter, b, b_name, b_bi);
                 });
             }
+            ui.horizontal(|ui| {
+                knob(ui, setter, &p.verb, "Reverb", false);
+                let pad = Button::new(RichText::new("▶").size(16.0).color(AMBER)).fill(mix(BTN, AMBER, 0.12)).min_size(vec2(STRIP_W - 48.0, 44.0));
+                if ui.add(pad).on_hover_text("Play this sound").clicked() {
+                    shared.audition.fetch_or(1 << c, Ordering::Relaxed);
+                    view.selected = c;
+                }
+            });
             ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            let pad = Button::new(RichText::new("▶").size(16.0).color(AMBER)).fill(mix(BTN, AMBER, 0.12)).min_size(vec2(STRIP_W, 30.0));
-            if ui.add(pad).on_hover_text("Play this sound").clicked() {
-                shared.audition.fetch_or(1 << c, Ordering::Relaxed);
-                view.selected = c;
-            }
-            if pill(ui, selected, "SELECT", TEAL, vec2(STRIP_W, 20.0)).clicked() {
-                view.selected = c;
-            }
+                if pill(ui, selected, "SELECT", TEAL, vec2(STRIP_W, 20.0)).clicked() {
+                    view.selected = c;
+                }
             });
         }));
 }
@@ -653,6 +657,7 @@ fn apply_demo(setter: &ParamSetter, params: &TenpinParams, shared: &Shared, d: &
         set(setter, &p.mute, false);
         set(setter, &p.solo, false);
         set(setter, &p.choke, k.choke);
+        set(setter, &p.verb, k.verb);
     }
     *params.patterns.write().unwrap() = d.steps();
     params
