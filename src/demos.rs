@@ -1,5 +1,5 @@
 //! Demo beats, written as text so they read like a drum chart.
-//! Velocity lanes: '.' off, '-' soft, 'o' medium, 'x' hard. Roll lanes: '.' or '1'-'4' hits.
+//! Velocity lanes: '.' off, '-' soft, 'o' medium, 'x' hard. Roll lanes: '.' or '1'-'4' hits, 't' for 16th triplets.
 use crate::{pattern_index, Step, CHANNELS, PATTERNS, STEPS};
 
 #[derive(Clone, Copy)]
@@ -64,7 +64,7 @@ impl Demo {
                         .roll
                         .chars()
                         .nth(s)
-                        .and_then(|r| r.to_digit(10))
+                        .and_then(|r| if r == 't' { Some(crate::seq::TRIPLET as u32) } else { r.to_digit(10) })
                         .unwrap_or(1) as u8;
                 }
                 for &(s, semis) in l.pitch {
@@ -289,7 +289,8 @@ pub const ALL: &[Demo] = &[
         ],
     },
     Demo {
-        // Hat rolls switch speed (2, 3 and 4 hits a step) and climb in pitch; the 808 plays a tune.
+        // Trap hats: 8ths broken up by 16th-triplet runs ('t'), 32nd and 32nd-triplet rolls and the
+        // odd 64th buzz, with velocity swells and pitch climbs; the 808 plays a tune.
         name: "Hip hop: trap rolls",
         bpm: 140.0,
         shuffle: 0.0,
@@ -297,8 +298,9 @@ pub const ALL: &[Demo] = &[
             s("kick_house"),
             s("snare_trap"),
             s("clap_808"),
-            hat("hat_closed_crisp"),
-            hat("hat_open_808"),
+            // Short and bright so fast rolls stay separate hits instead of smearing.
+            Kit { decay: 0.07, pan: 0.1, ..hat("hat_closed_808") },
+            Kit { decay: 0.3, pan: 0.1, ..hat("hat_open_808") },
             s("ride_bell"),
             Kit { decay: 3.0, ..s("crash_bright") },
             s("snap_1"),
@@ -311,37 +313,38 @@ pub const ALL: &[Demo] = &[
                 lane(SNARE, "........x......."),
                 lane(CLAP, "........x......."),
                 Lane {
-                    roll: "1111112211113334",
-                    pitch: &[(12, 1), (13, 3), (14, 5), (15, 7)],
-                    ..lane(HAT, "o-o-o-ooo-o-oooo")
+                    roll: "......tt....2233",
+                    pitch: &[(13, 2), (14, 4), (15, 7)],
+                    ..lane(HAT, "o.o.o.oox.o.--ox")
                 },
                 Lane { pitch: &[(6, 0), (10, 3), (14, -2)], ..lane(LOW, "x.....x...x...x.") },
             ],
+            // A whole beat of triplets swelling up, then a run diving down.
             &[
                 lane(KICK, "x.....x...x....."),
                 lane(SNARE, "........x......."),
                 lane(CLAP, "........x......."),
                 Lane {
-                    roll: "1.1.3.1.1.1.2.4.",
-                    pitch: &[(4, -2), (14, 5)],
-                    ..lane(HAT, "o.o.o.o.o.o.o.o.")
+                    roll: "....tttt....tttt",
+                    pitch: &[(12, 3), (13, 1), (14, -2), (15, -5)],
+                    ..lane(HAT, "o.o.--oox.o.xoo-")
                 },
                 lane(OPEN, "...........o...."),
                 Lane { pitch: &[(0, 0), (6, 5), (10, 3), (12, 0)], ..lane(LOW, "x.....x...x.x...") },
             ],
-            // Half-speed hats with triplet bursts.
+            // Half-time hats that stutter into a buzz.
             &[
                 lane(KICK, "x.......x.x....."),
                 lane(SNARE, "........x......."),
                 Lane {
-                    roll: "1...3...1...3.4.",
-                    pitch: &[(4, 2), (12, -3), (14, -5)],
-                    ..lane(HAT, "o...o...o...o.o.")
+                    roll: "..........23tt34",
+                    pitch: &[(11, 3), (14, 5), (15, 9)],
+                    ..lane(HAT, "o...o...o.-o--ox")
                 },
                 lane(PERC, "..-.......-....."),
                 Lane { pitch: &[(0, -5), (8, -5), (10, -2)], ..lane(LOW, "x.......x.x.....") },
             ],
-            // Fill: snare rolls rising into the drop.
+            // Fill: snare rolls rising into the drop over hats that speed up.
             &[
                 lane(KICK, "x..............."),
                 Lane {
@@ -349,7 +352,7 @@ pub const ALL: &[Demo] = &[
                     pitch: &[(12, 2), (13, 4), (14, 7), (15, 12)],
                     ..lane(SNARE, "....x...oooooxxx")
                 },
-                Lane { roll: "4444444444444444", ..lane(HAT, "-.-.-.-.-.-.-.-.") },
+                Lane { roll: "........tttt3344", ..lane(HAT, "-.-.-.-.--------") },
                 Lane { pitch: &[(0, 0)], ..lane(LOW, "x...............") },
             ],
         ],
@@ -402,46 +405,59 @@ pub const ALL: &[Demo] = &[
         ],
     },
     Demo {
-        name: "Drum & bass",
+        // Liquid two-step: a round kick on 1 and the "and" of 3, a bright tuned-up snare with ghost
+        // notes around it, and shaker, tambourine and hats rolling underneath.
+        name: "Drum & bass: liquid",
         bpm: 174.0,
-        shuffle: 0.0,
+        shuffle: 0.1,
         kit: [
-            s("kick_heavy"),
-            s("snare_dnb"),
-            s("clap_909"),
-            hat("hat_closed_rock"),
-            hat("hat_open_rock"),
-            s("ride_rock"),
-            Kit { decay: 4.0, ..s("crash_rock") },
-            s("tom_rock_hi"),
+            Kit { level: 3.0, decay: 0.3, ..s("kick_tech") },
+            Kit { level: 3.0, pitch: 2.0, ..s("snare_dnb") },
+            // Ghost snares, a little softer and off to one side.
+            Kit { pitch: 2.0, level: -5.0, pan: -0.15, ..s("snare_dnb_2") },
+            Kit { decay: 0.08, pan: 0.25, ..hat("hat_closed_crisp") },
+            Kit { decay: 0.35, pan: 0.25, ..hat("hat_open_acoustic") },
+            Kit { level: -6.0, pan: -0.3, ..s("ride_rock") },
+            Kit { level: -3.0, decay: 4.0, ..s("crash_bright") },
+            Kit { level: -4.0, pan: 0.35, ..s("perc_tambourine") },
             s("tom_rock_floor"),
-            s("perc_shaker"),
+            Kit { level: -5.0, decay: 0.15, pan: -0.3, ..s("perc_shaker") },
         ],
         patterns: [
             &[
                 lane(KICK, "x.........x....."),
-                lane(SNARE, "....x..-.-..x..-"),
-                lane(HAT, "o.o.o.o.o.o.o.o."),
+                lane(SNARE, "....x.......x..."),
+                lane(CLAP, ".......-.-.....-"),
+                lane(HAT, "-.o.-.o.-.o.-.o."),
+                lane(TOM_HI, "..o...o...o...o."),
+                lane(PERC, "-o-o-o-o-o-o-o-o"),
             ],
             &[
                 lane(KICK, "x.x.......x....."),
-                lane(SNARE, "....x..-.x..x..."),
-                lane(RIDE, "o.-.o.-.o.-.o.-."),
-                lane(PERC, "-o-o-o-o-o-o-o-o"),
-                lane(CRASH, "x..............."),
-            ],
-            &[
-                lane(KICK, "x.........x.x..."),
                 lane(SNARE, "....x.......x..."),
-                Lane { roll: "1.1.1.1.1.1.2.2.", ..lane(HAT, "o.o.o.o.o.o.o.o.") },
-                lane(OPEN, ".......o........"),
+                lane(CLAP, "..-....-.-.-...-"),
+                lane(HAT, "-.o.-.o.-.o.-oo."),
+                lane(OPEN, "..............o."),
+                lane(TOM_HI, "..o...o...o...o."),
+                lane(PERC, "-o-o-o-o-o-o-o-o"),
             ],
             &[
                 lane(KICK, "x.........x....."),
-                lane(SNARE, "....x..-.xxo.ooo"),
-                lane(TOM_HI, "...........x...."),
-                lane(LOW, "............x..."),
-                lane(HAT, "o.o.o.o.o......."),
+                lane(SNARE, "....x.......x..."),
+                lane(CLAP, ".......-.-....-."),
+                lane(RIDE, "o.-.o.-.o.-.o.-."),
+                lane(CRASH, "x..............."),
+                lane(TOM_HI, "..o...o...o...o."),
+                lane(PERC, "-o-o-o-o-o-o-o-o"),
+            ],
+            // Fill: ghosts tumble into a doubled snare and a floor tom.
+            &[
+                lane(KICK, "x.........x....."),
+                Lane { roll: "..............22", ..lane(SNARE, "....x.......x.ox") },
+                lane(CLAP, ".......-.-.--.-."),
+                lane(HAT, "-.o.-.o.-.o....."),
+                lane(LOW, "...........o...."),
+                lane(PERC, "-o-o-o-o-o-o-o-o"),
             ],
         ],
     },

@@ -1,5 +1,6 @@
 use crate::{
-    demos, kit, library, pattern_index, Shared, Step, TenpinParams, CHANNELS, PATTERNS, STEPS,
+    demos, kit, library, pattern_index, seq::TRIPLET, Shared, Step, TenpinParams, CHANNELS,
+    PATTERNS, STEPS,
 };
 use nih_plug::prelude::*;
 use nih_plug_egui::create_egui_editor;
@@ -306,7 +307,7 @@ fn sequencer(
             section(ui, "EDIT", |ui| {
                 for (mode, name, tip) in [
                     (Mode::Vel, "VEL", "Click steps on and off"),
-                    (Mode::Roll, "ROLL", "Click a step for 1-4 hits inside it: hat rolls"),
+                    (Mode::Roll, "ROLL", "Click a step for 1-4 hits inside it, then T for 16th triplets: hat rolls"),
                     (Mode::Pitch, "PITCH", "Drag a step up or down to retune that hit"),
                 ] {
                     if pill(ui, view.mode == mode, name, TEAL, vec2(52.0, 26.0)).on_hover_text(tip).clicked() {
@@ -345,7 +346,7 @@ fn sequencer(
                 match view.mode {
                     Mode::Vel if resp.clicked() => step.vel = if step.vel == view.dynamic { 0 } else { view.dynamic },
                     Mode::Roll if resp.clicked() => {
-                        step.roll = step.hits() as u8 % 4 + 1;
+                        step.roll = step.roll.clamp(1, TRIPLET) % TRIPLET + 1;
                         step.vel = step.vel.max(view.dynamic.min(if step.vel == 0 { 3 } else { step.vel }));
                     }
                     Mode::Pitch if resp.dragged() => {
@@ -371,6 +372,7 @@ fn sequencer(
                 let pad = Rect::from_min_max(rect.min + vec2(0.0, 14.0), rect.max);
                 paint_step(ui, pad, s, step, s >= steps, false, true);
                 let big = match view.mode {
+                    Mode::Roll if step.roll == TRIPLET => "T".into(),
                     Mode::Roll if step.hits() > 1 => format!("×{}", step.hits()),
                     Mode::Pitch if step.pitch != 0 => format!("{:+}", step.pitch),
                     _ => String::new(),
@@ -427,7 +429,15 @@ fn paint_step(ui: &Ui, rect: Rect, s: usize, step: Step, beyond: bool, playing: 
             ink,
         );
     }
-    if step.vel > 0 && step.hits() > 1 {
+    if step.vel > 0 && step.roll == TRIPLET {
+        painter.text(
+            rect.right_bottom() + vec2(-5.0, -2.0),
+            Align2::RIGHT_BOTTOM,
+            "T",
+            FontId::proportional(10.0),
+            ink,
+        );
+    } else if step.vel > 0 && step.hits() > 1 {
         let y = rect.bottom() - 6.0;
         for h in 0..step.hits() {
             let x = rect.right() - 7.0 - h as f32 * 6.0;

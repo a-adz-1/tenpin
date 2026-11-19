@@ -20,7 +20,7 @@ const VELOCITY: [f32; 4] = [0.0, 0.45, 0.7, 1.0];
 pub struct Step {
     /// 0 off, 1-3 soft to hard.
     pub vel: u8,
-    /// Hits within the step, 1-4.
+    /// Hits within the step, 1-4, or seq::TRIPLET for 16th-note triplets.
     pub roll: u8,
     /// Semitones added to the channel's pitch.
     pub pitch: i8,
@@ -455,7 +455,7 @@ impl Plugin for Tenpin {
                     }
                     for c in 0..CHANNELS {
                         let s = patterns[pattern_index(pattern, c, step)];
-                        if s.vel > 0 && tick % (seq::TICKS / s.hits()) == 0 {
+                        if s.vel > 0 && seq::plays(s.roll, k, tick) {
                             self.trigger(
                                 c,
                                 VELOCITY[s.vel.min(3) as usize],

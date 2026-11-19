@@ -19,6 +19,19 @@ fn ticks(x: f64, shuffle: f64) -> f64 {
     (j as f64 + (x - start) / (fire_time(j + 1, shuffle) - start)) * TICKS as f64
 }
 
+/// Roll value for 16th-note triplets: a hit every 2/3 of a step on a grid that runs across steps,
+/// so two triplet steps in a row give three even hits.
+pub const TRIPLET: u8 = 5;
+
+/// Whether a step with this roll value plays at tick `tick` of absolute step `k`.
+pub fn plays(roll: u8, k: i64, tick: i64) -> bool {
+    if roll == TRIPLET {
+        (k * TICKS + tick).rem_euclid(TICKS * 2 / 3) == 0
+    } else {
+        tick % (TICKS / roll.clamp(1, 4) as i64) == 0
+    }
+}
+
 /// The (step, tick) that starts in the interval (prev, now], if any.
 pub fn fired(prev: f64, now: f64, shuffle: f64) -> Option<(i64, i64)> {
     let n = ticks(now, shuffle).floor() as i64;
@@ -65,5 +78,14 @@ mod tests {
         assert!((at(1, 0) - 1.5).abs() < 1e-3 && (at(2, 0) - 2.0).abs() < 1e-3);
         // A 2-hit roll on the shortened odd step lands halfway through it.
         assert!((at(1, TICKS / 2) - 1.75).abs() < 1e-3);
+    }
+
+    #[test]
+    fn two_triplet_steps_play_three_even_hits() {
+        let hits: Vec<i64> = (2..4)
+            .flat_map(|k| (0..TICKS).filter(move |&t| plays(TRIPLET, k, t)).map(move |t| k * TICKS + t))
+            .collect();
+        assert_eq!(hits, vec![24, 32, 40]);
+        assert_eq!((0..TICKS).filter(|&t| plays(3, 0, t)).count(), 3);
     }
 }
