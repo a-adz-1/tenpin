@@ -294,18 +294,18 @@ pub const ALL: &[Demo] = &[
         ],
     },
     Demo {
-        // Trap hats: 8ths broken up by 16th-triplet runs ('t'), 32nd and 32nd-triplet rolls and the
-        // odd 64th buzz, with velocity swells and pitch climbs; the 808 plays a tune.
+        // Trap at 140: even 8th-note hats with rolls only into the snare and at the bar end, at the
+        // speeds trap really uses (32nds, 16th triplets 't', bouncing 8th triplets 'T'). The 808
+        // doubles the kick and carries the tune.
         name: "Hip hop: trap rolls 1",
         bpm: 140.0,
         shuffle: 0.0,
         kit: [
             s("kick_house"),
             s("snare_trap"),
-            s("clap_808"),
-            // Short and bright so fast rolls stay separate hits instead of smearing.
-            Kit { decay: 0.07, pan: 0.1, ..hat("hat_closed_808") },
-            Kit { decay: 0.3, pan: 0.1, ..hat("hat_open_808") },
+            Kit { level: -3.0, ..s("clap_808") },
+            Kit { decay: 0.3, pan: 0.1, ..hat("hat_closed_808") },
+            Kit { level: -4.0, decay: 0.4, pan: 0.1, ..hat("hat_open_808") },
             s("ride_bell"),
             Kit { decay: 3.0, ..s("crash_bright") },
             s("snap_1"),
@@ -313,52 +313,50 @@ pub const ALL: &[Demo] = &[
             s("perc_cowbell_808"),
         ],
         patterns: [
+            // A triplet into the snare and 32nds to end the bar.
+            &[
+                lane(KICK, "x......x..x....."),
+                lane(SNARE, "........x......."),
+                lane(CLAP, "........x......."),
+                Lane { roll: "......tt......22", ..lane(HAT, "o.o.o.ooo.o.o.oo") },
+                Lane { pitch: &[(10, -2)], ..lane(LOW, "x......x..x.....") },
+            ],
+            // The second half bounces on 8th-note triplets that drop in pitch.
+            &[
+                lane(KICK, "x.........x..x.."),
+                lane(SNARE, "........x......."),
+                lane(CLAP, "........x......."),
+                Lane {
+                    roll: "........TTTTTTTT",
+                    pitch: &[(12, -2), (13, -3), (14, -5)],
+                    ..lane(HAT, "o.o.o.oooooooooo")
+                },
+                Lane { pitch: &[(10, -2), (13, 3)], ..lane(LOW, "x.........x..x..") },
+            ],
+            // Sparser hats, an open hat, and a run that climbs into the next bar.
+            &[
+                lane(KICK, "x..x......x....."),
+                lane(SNARE, "........x......."),
+                lane(CLAP, "........x......."),
+                Lane {
+                    roll: "............tt22",
+                    pitch: &[(14, 2), (15, 4)],
+                    ..lane(HAT, "o...o...o.o.oooo")
+                },
+                lane(OPEN, "......o........."),
+                Lane { pitch: &[(10, -5)], ..lane(LOW, "x..x......x.....") },
+            ],
+            // Fill: a 32nd-note snare roll rising into the drop.
             &[
                 lane(KICK, "x.........x....."),
-                lane(SNARE, "........x......."),
+                Lane {
+                    roll: "............2222",
+                    pitch: &[(12, 0), (13, 2), (14, 4), (15, 7)],
+                    ..lane(SNARE, "........x...-oox")
+                },
                 lane(CLAP, "........x......."),
-                Lane {
-                    roll: "......tt....2233",
-                    pitch: &[(13, 2), (14, 4), (15, 7)],
-                    ..lane(HAT, "o.o.o.oox.o.--ox")
-                },
-                Lane { pitch: &[(6, 0), (10, 3), (14, -2)], ..lane(LOW, "x.....x...x...x.") },
-            ],
-            // A whole beat of triplets swelling up, then a run diving down.
-            &[
-                lane(KICK, "x.....x...x....."),
-                lane(SNARE, "........x......."),
-                lane(CLAP, "........x......."),
-                Lane {
-                    roll: "....tttt....tttt",
-                    pitch: &[(12, 3), (13, 1), (14, -2), (15, -5)],
-                    ..lane(HAT, "o.o.--oox.o.xoo-")
-                },
-                lane(OPEN, "...........o...."),
-                Lane { pitch: &[(0, 0), (6, 5), (10, 3), (12, 0)], ..lane(LOW, "x.....x...x.x...") },
-            ],
-            // Half-time hats that stutter into a buzz.
-            &[
-                lane(KICK, "x.......x.x....."),
-                lane(SNARE, "........x......."),
-                Lane {
-                    roll: "..........23tt34",
-                    pitch: &[(11, 3), (14, 5), (15, 9)],
-                    ..lane(HAT, "o...o...o.-o--ox")
-                },
-                lane(PERC, "..-.......-....."),
-                Lane { pitch: &[(0, -5), (8, -5), (10, -2)], ..lane(LOW, "x.......x.x.....") },
-            ],
-            // Fill: snare rolls rising into the drop over hats that speed up.
-            &[
-                lane(KICK, "x..............."),
-                Lane {
-                    roll: "....1...22223344",
-                    pitch: &[(12, 2), (13, 4), (14, 7), (15, 12)],
-                    ..lane(SNARE, "....x...oooooxxx")
-                },
-                Lane { roll: "........tttt3344", ..lane(HAT, "-.-.-.-.--------") },
-                Lane { pitch: &[(0, 0)], ..lane(LOW, "x...............") },
+                lane(HAT, "o.o.o.o.o.o.o.o."),
+                Lane { pitch: &[(10, -2)], ..lane(LOW, "x.........x.....") },
             ],
         ],
     },
@@ -370,7 +368,7 @@ pub const ALL: &[Demo] = &[
             s("kick_house"),
             s("snare_trap"),
             s("clap_808"),
-            Kit { decay: 0.07, pan: 0.1, ..hat("hat_closed_808") },
+            Kit { decay: 0.3, pan: 0.1, ..hat("hat_closed_808") },
             Kit { decay: 0.3, pan: 0.1, ..hat("hat_open_808") },
             s("ride_bell"),
             Kit { decay: 3.0, ..s("crash_bright") },
