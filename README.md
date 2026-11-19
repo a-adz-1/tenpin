@@ -17,6 +17,21 @@ in any DAW, or on its own as a **standalone app**.
 - **Save / Load** `.tenpin` files: jam in the standalone app, then load the same file in your DAW
 - Demo beats: rock, trance, boom bap, trap rolls, house, drum & bass, funk
 
+## Download
+
+Grab the zip for your system from the [Releases](https://github.com/a-adz-1/tenpin/releases) page.
+Each one has the standalone app plus the VST3 and CLAP plugins.
+
+- **Linux:** copy `tenpin.vst3` to `~/.vst3/` and `tenpin.clap` to `~/.clap/`; run `tenpin` for the
+  standalone app
+- **Windows:** copy `tenpin.vst3` to `C:\Program Files\Common Files\VST3\` and `tenpin.clap` to
+  `C:\Program Files\Common Files\CLAP\`; run `tenpin.exe` for the standalone app
+- **macOS:** copy `tenpin.vst3` to `~/Library/Audio/Plug-Ins/VST3/` and `tenpin.clap` to
+  `~/Library/Audio/Plug-Ins/CLAP/`. The builds aren't signed, so macOS will say they're damaged
+  until you clear the download flag: `xattr -dr com.apple.quarantine tenpin.vst3 tenpin.clap tenpin`
+
+Then rescan plugins in your DAW.
+
 ## Building
 
 Needs Rust (stable). On Linux you also need the ALSA, JACK, X11 and GL development headers.

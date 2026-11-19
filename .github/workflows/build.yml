@@ -1,0 +1,70 @@
+# Builds the standalone app, VST3 and CLAP for Linux, macOS and Windows.
+# Pushing a v* tag (git tag v0.1.0 && git push --tags) also publishes them as a GitHub Release.
+name: Build
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04 keeps the Linux build working on older glibc distros.
+          - { name: linux, os: ubuntu-22.04 }
+          - { name: macos, os: macos-latest }
+          - { name: windows, os: windows-latest }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libgl-dev libjack-dev libx11-xcb-dev libxcb1-dev \
+            libxcb-dri2-0-dev libxcb-icccm4-dev libxcursor-dev libxkbcommon-dev libxcb-shape0-dev \
+            libxcb-xfixes0-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ runner.os == 'macOS' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --release
+      - name: Bundle
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            cargo xtask bundle-universal tenpin --release
+          else
+            cargo xtask bundle tenpin --release
+          fi
+          cp LICENSE README.md target/bundled/
+      - name: Zip
+        shell: bash
+        working-directory: target/bundled
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            7z a ../../tenpin-${{ matrix.name }}.zip .
+          else
+            zip -ry ../../tenpin-${{ matrix.name }}.zip .
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tenpin-${{ matrix.name }}
+          path: tenpin-${{ matrix.name }}.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: tenpin-*.zip
+          generate_release_notes: true
