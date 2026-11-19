@@ -59,6 +59,10 @@ cargo test
   - Right-click a step to reset it
 - **Hide knobs** swaps the channel strips for a grid of every channel's steps
 
+## Support
+
+Tenpin is free. If it's useful to you, you can [buy me a coffee on Ko-fi](https://ko-fi.com/aadz1).
+
 ## Licence
 
 Tenpin is free software under the GNU General Public License v3.0 or later (see `LICENSE`).
